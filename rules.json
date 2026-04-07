@@ -1,80 +1,50 @@
 {
-  "watchlist": ["BTCUSD", "ETHUSD", "SOLUSD"],
-  "default_timeframe": "1W",
+  "watchlist": ["BTCUSDT"],
+  "default_timeframe": "1m",
 
   "strategy": {
-    "name": "van de Poppe + Tone Vays BTC Strategy",
-    "sources": [
-      "Michaël van de Poppe (@CryptoMichNL) — EMA 21/50/200 pullback system",
-      "Tone Vays (@ToneVays) — MACD divergence + RSI confirmation"
-    ],
-    "primary_timeframes": [
-      "Weekly (macro bias)",
-      "Daily (entry timing)",
-      "4H (precise entry)"
-    ]
+    "name": "VWAP + RSI(3) + EMA(8) Scalping Strategy",
+    "sources": ["Lewis Jackson"],
+    "description": "Three indicators, each doing a different job. EMA(8) for trend direction, VWAP for session bias, RSI(3) for entry timing. All three must align before a trade fires."
   },
 
   "indicators": {
-    "ema_21": "Short-term trend. Price bouncing off this = healthy uptrend.",
-    "ema_50": "Medium-term trend. EMA 21 above EMA 50 = bullish alignment.",
-    "ema_200": "Macro trend filter. Only take longs above this. Only take shorts below.",
-    "rsi_14": "Momentum filter. Pullback entry zone: 35–58. Overbought: >70. Oversold: <30.",
-    "macd_12_26_9": "Tone Vays momentum confirmation. Line above signal = bullish. Divergence = reversal warning."
+    "ema_8": "Trend direction. Price above EMA(8) = bullish momentum. Below = bearish.",
+    "vwap": "Session bias. Price above VWAP = buyers in control. Below = sellers. Resets at midnight UTC.",
+    "rsi_3": "Entry timing. RSI on 3 candles only — extremely sensitive. Below 30 in an uptrend = snap-back setup. Above 70 in a downtrend = reversal likely."
   },
 
   "bias_criteria": {
-    "bullish": [
-      "Price is above the EMA 200",
-      "EMA 21 is above EMA 50 (golden alignment)",
-      "MACD line is above signal line",
-      "RSI is below 70 (room to run)"
-    ],
-    "bearish": [
-      "Price is below the EMA 200",
-      "EMA 21 is below EMA 50",
-      "MACD line is below signal line",
-      "RSI is above 30 (room to drop)"
-    ],
-    "neutral": [
-      "Price is chopping around the EMA 200",
-      "EMA 21 and EMA 50 are flat or intertwined",
-      "RSI is between 45 and 55"
-    ]
+    "bullish": ["Price is above VWAP", "Price is above EMA(8)"],
+    "bearish": ["Price is below VWAP", "Price is below EMA(8)"]
   },
 
   "entry_rules": {
     "long": [
-      "Macro bias is BULLISH (price > EMA 200, EMA 21 > EMA 50)",
-      "Price pulls back into the EMA 21–50 zone",
-      "RSI cools to 35–58 range (not capitulation, just a healthy pullback)",
-      "MACD line remains above signal line (momentum intact)",
-      "Enter in two tranches: 50% on first touch of zone, 50% on confirmed bounce candle"
+      "Price is above VWAP — buyers in control for the session",
+      "Price is above EMA(8) — uptrend confirmed",
+      "RSI(3) has dropped below 30 — short-term pullback in an uptrend, snap-back likely"
     ],
     "short": [
-      "Macro bias is BEARISH (price < EMA 200, EMA 21 < EMA 50)",
-      "Price retraces up into the EMA 21–50 zone",
-      "RSI in 42–65 range",
-      "MACD line below signal line"
+      "Price is below VWAP — sellers in control",
+      "Price is below EMA(8) — downtrend confirmed",
+      "RSI(3) has spiked above 70 — overbought in a downtrend, reversal likely"
     ]
   },
 
   "exit_rules": [
-    "Take 33–50% profit at prior swing high or key resistance",
-    "Remaining position targets: 1.272 and 1.618 Fibonacci extensions from prior swing",
-    "Full exit if stop loss is hit — no averaging down into losers",
-    "Exit if MACD crosses bearish on the entry timeframe"
+    "Exit when RSI(3) crosses back above 50 (for longs) or below 50 (for shorts)",
+    "Hard stop: 0.3% below entry for longs, 0.3% above entry for shorts",
+    "Take profit at next VWAP touch or EMA(8) cross"
   ],
 
   "risk_rules": [
-    "Risk maximum 1–2% of portfolio per trade",
-    "Minimum R:R of 2:1 — prefer 3:1 or better",
-    "Stop loss placed below the 0.786 Fibonacci level or most recent swing low",
-    "Position size = risk amount divided by distance to stop loss",
-    "Maximum 2–3 open positions at once",
-    "If stop is hit, setup is invalid — do not re-enter immediately",
-    "No trading against the EMA 200 macro trend"
+    "Risk maximum 1% of portfolio per trade",
+    "Maximum trade size capped by MAX_TRADE_SIZE_USD in .env",
+    "Maximum trades per day capped by MAX_TRADES_PER_DAY in .env",
+    "Do not trade if price is more than 1.5% away from VWAP — overextended",
+    "Paper trade first — validate this strategy on your specific asset before going live"
   ],
 
-  "notes": "Add macro context here — e.g. upcoming Fed meetings, halving cycle position, key on-chain levels, Bitcoin dominance trend, anything that should affect bias this week."
+  "notes": "Scalping strategy — designed for 1m to 5m timeframes. RSI(3) is intentionally fast and sensitive. Do not apply to higher timeframes."
 }
