@@ -20,8 +20,8 @@ import crypto from "crypto";
 
 const CONFIG = {
   symbol: process.env.AGV3_SYMBOL || "BYBIT:BTCUSDT.P",
-  portfolioValue: parseFloat(process.env.PORTFOLIO_VALUE_USD || "200"),
-  riskPerTrade: parseFloat(process.env.RISK_PER_TRADE_PCT || "2"),   // % of portfolio per trade
+  tradeSize: parseFloat(process.env.TRADE_SIZE_USDT || "20"),        // fixed USDT margin per trade
+  leverage: parseInt(process.env.LEVERAGE || "10"),                   // futures leverage
   paperTrading: process.env.PAPER_TRADING !== "false",
 
   // Strategy params (match Pine Script)
@@ -404,13 +404,29 @@ async function bitgetRequest(method, path, bodyObj = null) {
   return data.data;
 }
 
+async function setLeverage(sym) {
+  await bitgetRequest("POST", "/api/v2/mix/account/set-leverage", {
+    symbol:      sym,
+    productType: "USDT-FUTURES",
+    marginCoin:  "USDT",
+    leverage:    String(CONFIG.leverage),
+    holdSide:    "long_short",
+  });
+}
+
 async function placeOrder(side, sizeUSD, price) {
   if (CONFIG.paperTrading) {
     return { orderId: `PAPER_${Date.now()}` };
   }
 
   const sym = CONFIG.symbol.replace(/^[^:]+:/, "").replace(/\.P$/, "");
-  const qty = (sizeUSD / price).toFixed(6);
+
+  // Set leverage first
+  await setLeverage(sym);
+
+  // Notional = margin × leverage → qty in BTC
+  const notional = sizeUSD * CONFIG.leverage;
+  const qty = (notional / price).toFixed(6);
 
   return await bitgetRequest("POST", "/api/v2/mix/order/placeOrder", {
     symbol:      sym,
@@ -479,7 +495,7 @@ async function run() {
   // ── Execute action ──────────────────────────────────────────────────────
 
   if (action === "ENTER_LONG") {
-    const sizeUSD = CONFIG.portfolioValue * CONFIG.riskPerTrade / 100;
+    const sizeUSD = CONFIG.tradeSize;  // fixed USDT margin per trade
     const sl      = newState.sweepLow - atr14 * CONFIG.slMult;
     const risk    = bar.close - sl;
     const tp      = bar.close + risk * CONFIG.tpRR;
@@ -489,7 +505,7 @@ async function run() {
     console.log(`  Entry:  $${bar.close.toFixed(2)}`);
     console.log(`  SL:     $${sl.toFixed(2)}  (−$${(bar.close - sl).toFixed(2)}, ${((bar.close-sl)/bar.close*100).toFixed(3)}%)`);
     console.log(`  TP:     $${tp.toFixed(2)}  (+$${(tp - bar.close).toFixed(2)}, ${((tp-bar.close)/bar.close*100).toFixed(3)}%)`);
-    console.log(`  Size:   $${sizeUSD.toFixed(2)} (${CONFIG.riskPerTrade}% risk)`);
+    console.log(`  Size:   $${sizeUSD.toFixed(2)} margin × ${CONFIG.leverage}x = $${(sizeUSD * CONFIG.leverage).toFixed(2)} notional`);
     console.log(`  Mode:   ${CONFIG.paperTrading ? "PAPER" : "LIVE"}`);
     console.log("  ══════════════════════════════════════════════════\n");
 
