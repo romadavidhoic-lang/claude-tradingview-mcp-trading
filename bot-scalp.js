@@ -12,7 +12,11 @@
 
 import "dotenv/config";
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import crypto from "crypto";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ─── Config ────────────────────────────────────────────────────────────────
 
@@ -408,7 +412,7 @@ function generateTaxSummary() {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function run() {
-  const rules = JSON.parse(readFileSync("rules-scalp.json", "utf8"));
+  const rules = JSON.parse(readFileSync(join(__dirname, "rules-scalp.json"), "utf8"));
   const watchlist = rules.watchlist || ["BYBIT:BTCUSDT.P"];
   const log = loadLog();
 
