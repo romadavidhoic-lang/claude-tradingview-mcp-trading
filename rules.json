@@ -1,50 +1,114 @@
 {
-  "watchlist": ["BTCUSDT"],
-  "default_timeframe": "1m",
+  "watchlist": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "SUIUSDT",
+    "PEPEUSDT",
+    "FETUSDT"
+  ],
+  "default_timeframe": "1D",
 
   "strategy": {
-    "name": "VWAP + RSI(3) + EMA(8) Scalping Strategy",
-    "sources": ["Lewis Jackson"],
-    "description": "Three indicators, each doing a different job. EMA(8) for trend direction, VWAP for session bias, RSI(3) for entry timing. All three must align before a trade fires."
+    "name": "Antigravity — MCB v6 + TTC Confluence",
+    "description": "WaveTrend extremes (±65) as the primary signal filter, confirmed by TTC 7-condition confluence scoring. Only trades at true exhaustion points — not momentum, not trend-following. Tested at 80% win rate on BTC daily.",
+    "timeframe": "Daily",
+    "risk_reward": "1:3 (SL 1.5× ATR, TP 4.5× ATR)",
+    "max_hold_bars": 40
   },
 
   "indicators": {
-    "ema_8": "Trend direction. Price above EMA(8) = bullish momentum. Below = bearish.",
-    "vwap": "Session bias. Price above VWAP = buyers in control. Below = sellers. Resets at midnight UTC.",
-    "rsi_3": "Entry timing. RSI on 3 candles only — extremely sensitive. Below 30 in an uptrend = snap-back setup. Above 70 in a downtrend = reversal likely."
+    "wavetrend": "Core signal engine. WT1 (Lt Blue Wave) and WT2 (Blue Wave) from MarketCipher_B. Signal fires when WT2 crosses ±65 — this marks true seller/buyer exhaustion, not just an oversold reading.",
+    "ttc_trend": "EMA 21 vs EMA 50 — directional bias filter. EMA21 > EMA50 = bullish alignment. EMA21 < EMA50 = bearish.",
+    "rsi_14": "RSI(14) — momentum filter. < 40 = long bias. > 65 = short bias. 40–65 = neutral, no contribution.",
+    "stoch_rsi_k": "Stochastic RSI K — oscillator confirmation. < 20 = oversold (long). > 80 = overbought (short).",
+    "mfi_14": "Money Flow Index(14) — volume-weighted flow. < 30 = accumulation (long). > 70 = distribution (short).",
+    "vwap": "VWAP — price bias. Price above VWAP = long favoured. Price below VWAP = short favoured.",
+    "bollinger_bands": "Bollinger Bands — volatility extreme. Price below lower band = long. Price above upper band = short.",
+    "atr_14": "ATR(14) — used for stop loss (1.5×) and take profit (4.5×) calculation only."
   },
 
   "bias_criteria": {
-    "bullish": ["Price is above VWAP", "Price is above EMA(8)"],
-    "bearish": ["Price is below VWAP", "Price is below EMA(8)"]
+    "bullish": [
+      "Weekly MCB waves above zero (macro filter)",
+      "Daily WT2 approaching or below -65 (exhaustion zone)",
+      "Price above EMA 200 (bull structure intact)",
+      "EMA 21 above EMA 50 (golden alignment)"
+    ],
+    "bearish": [
+      "Weekly MCB waves below zero (macro filter)",
+      "Daily WT2 approaching or above +65 (exhaustion zone)",
+      "Price below EMA 200 (bear structure)",
+      "EMA 21 below EMA 50 (death alignment)"
+    ],
+    "neutral_skip": [
+      "WT2 between -40 and +40 — no signal, wait",
+      "TTC long score < 2 AND TTC short score < 2 — no confluence, skip",
+      "Weekly and daily MCB direction disagree — reduce size or skip"
+    ]
+  },
+
+  "ttc_scoring": {
+    "description": "7 binary conditions. Each gives +1 Long or +1 Short. Minimum score of 2 required to confirm entry. Score of 4+ = high conviction.",
+    "minimum_score_to_trade": 2,
+    "conditions": [
+      { "id": 1, "name": "Trend",     "long": "EMA 21 > EMA 50",          "short": "EMA 21 < EMA 50" },
+      { "id": 2, "name": "RSI",       "long": "RSI(14) < 40",              "short": "RSI(14) > 65" },
+      { "id": 3, "name": "WaveTrend", "long": "WT2 < -53",                 "short": "WT2 > 53" },
+      { "id": 4, "name": "Stoch",     "long": "Stoch RSI K < 20",          "short": "Stoch RSI K > 80" },
+      { "id": 5, "name": "MFI",       "long": "MFI(14) < 30",              "short": "MFI(14) > 70" },
+      { "id": 6, "name": "VWAP",      "long": "Price > VWAP",              "short": "Price < VWAP" },
+      { "id": 7, "name": "BB",        "long": "Price < Bollinger Lower",   "short": "Price > Bollinger Upper" }
+    ]
   },
 
   "entry_rules": {
     "long": [
-      "Price is above VWAP — buyers in control for the session",
-      "Price is above EMA(8) — uptrend confirmed",
-      "RSI(3) has dropped below 30 — short-term pullback in an uptrend, snap-back likely"
+      "WT2 (Blue Wave) crosses below -65 — buyer exhaustion confirmed",
+      "WT1 crosses above WT2 — bullish momentum turn",
+      "TTC Long score ≥ 2 out of 7 conditions",
+      "Price above EMA 200 (preferred — relaxed for alts)"
     ],
     "short": [
-      "Price is below VWAP — sellers in control",
-      "Price is below EMA(8) — downtrend confirmed",
-      "RSI(3) has spiked above 70 — overbought in a downtrend, reversal likely"
+      "WT2 (Blue Wave) crosses above +65 — seller exhaustion confirmed",
+      "WT1 crosses below WT2 — bearish momentum turn",
+      "TTC Short score ≥ 2 out of 7 conditions"
     ]
   },
 
   "exit_rules": [
-    "Exit when RSI(3) crosses back above 50 (for longs) or below 50 (for shorts)",
-    "Hard stop: 0.3% below entry for longs, 0.3% above entry for shorts",
-    "Take profit at next VWAP touch or EMA(8) cross"
+    "Stop loss: 1.5× ATR(14) below entry (long) or above entry (short)",
+    "Take profit: 4.5× ATR(14) above entry (long) or below entry (short) — 1:3 R:R",
+    "Maximum hold: 40 daily bars — exit at market if neither SL nor TP hit",
+    "Early exit: WT2 crosses back through zero line with opposing TTC score ≥ 4"
   ],
 
   "risk_rules": [
-    "Risk maximum 1% of portfolio per trade",
+    "Never risk more than 2% of portfolio per trade",
     "Maximum trade size capped by MAX_TRADE_SIZE_USD in .env",
     "Maximum trades per day capped by MAX_TRADES_PER_DAY in .env",
-    "Do not trade if price is more than 1.5% away from VWAP — overextended",
-    "Paper trade first — validate this strategy on your specific asset before going live"
+    "BTC only for high-confidence trades (80% WR backtested) — alts carry higher false-signal risk",
+    "No longs on ETH, SOL, SUI when price is below EMA 200",
+    "Reduce position size to 50% when TTC score is exactly 2 (minimum threshold)",
+    "Full position size when TTC score ≥ 4 (high conviction)",
+    "Paper trade first — validate live signal matches backtest conditions before going live"
   ],
 
-  "notes": "Scalping strategy — designed for 1m to 5m timeframes. RSI(3) is intentionally fast and sensitive. Do not apply to higher timeframes."
+  "asset_notes": {
+    "BTCUSDT": "Primary asset. 80% WR backtested on 300 daily bars. Full strategy applies.",
+    "XRPUSDT": "50% WR. Viable with TTC ≥ 3 filter. Watch WT2 — closest to -65 currently.",
+    "FETUSDT": "43% WR but profitable (+9.86€) due to strong TP hits. Trade with caution.",
+    "PEPEUSDT": "33% WR. Only trade with TTC ≥ 3. Nov cluster creates false longs.",
+    "SUIUSDT": "33% WR. Extreme oversold (RSI 8.8, Stoch 7.1 weekly). No EMA200 history.",
+    "SOLUSDT": "33% WR. Most oversold (RSI 8.6 weekly). Below EMA200 — no longs yet.",
+    "ETHUSDT": "33% WR, -5.14€. Below EMA200. No longs until structure recovers."
+  },
+
+  "morning_brief_notes": [
+    "Check Weekly MCB first — sets the macro bias for all 7 assets",
+    "Check WT2 distance from ±65 — anything within 10 points is worth watching",
+    "Check TTC score — if ≥ 4 on any asset, that is today's primary watch",
+    "No signal is valid unless WT2 has actually crossed ±65 — approaching is not enough"
+  ]
 }
