@@ -442,6 +442,12 @@ async function placeOrder(side, sizeUSD, price) {
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
+// Safety net — force exit after 3 minutes so cron never hangs
+setTimeout(() => {
+  console.log("⏱ Max runtime (3 min) exceeded — force exit");
+  process.exit(0);
+}, 3 * 60 * 1000).unref();
+
 async function run() {
   // Onboarding check
   if (!CONFIG.bitget.apiKey && !CONFIG.paperTrading) {
