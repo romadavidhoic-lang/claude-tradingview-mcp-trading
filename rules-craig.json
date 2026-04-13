@@ -1,0 +1,28 @@
+{
+  "strategy": {
+    "name": "Craig Percoco — Range → Change → Execute",
+    "description": "ICT/SMC: 15m BOS + Fair Value Gap, then 1m CHoCH + FVG entry",
+    "steps": [
+      "1. RANGE  (15m): BOS identifies trend direction + 15m FVGs as targets",
+      "2. CHANGE (1m):  CHoCH confirms control handoff + 1m FVG forms",
+      "3. EXECUTE: Entry = 1m FVG mid | SL = outside liquidity | TP1 = 1:4 | TP2 = 15m FVG mid"
+    ],
+    "version": "1.0"
+  },
+  "watchlist": [
+    "BYBIT:BTCUSDT.P",
+    "BYBIT:ETHUSDT.P",
+    "BYBIT:SOLUSDT.P",
+    "BYBIT:XRPUSDT.P"
+  ],
+  "notes": {
+    "bos_timeframe": "15m — Higher Highs+Lows = BULL, Lower Highs+Lows = BEAR",
+    "choch_timeframe": "1m — strong candle breaks last swing point in trend direction",
+    "fvg": "3-candle gap: wick of candle 1 and wick of candle 3 do not overlap",
+    "entry": "Limit at mid of 1m FVG, or market at close of CHoCH candle",
+    "sl": "Just outside the liquidity inflection level (last swing low for long, last swing high for short)",
+    "tp1": "1:4 R:R initial target",
+    "tp2": "Mid of 15m FVG — can extend to 1:8 R:R",
+    "be": "Move SL to break-even when price closes past TP midpoint or confirms direction"
+  }
+}
