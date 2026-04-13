@@ -142,7 +142,7 @@ async function fetchCandles(symbol, interval = "1d", limit = 300) {
   const okxInterval = intervalMap[interval] || "1D";
 
   const url = `https://www.okx.com/api/v5/market/candles?instId=${okxSym}&bar=${okxInterval}&limit=${limit}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error(`OKX ${okxSym}: HTTP ${res.status}`);
   const data = await res.json();
   if (data.code !== "0") throw new Error(`OKX ${okxSym}: ${data.msg}`);
