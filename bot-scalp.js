@@ -212,17 +212,15 @@ function getScalpSignal(candles) {
     side = "LONG";
     check("EMA 9 crosses above EMA 21",    "crossover ↑",      `${ema9Now.toFixed(4)} > ${ema21Now.toFixed(4)}`, true);
     check("Price above VWAP",              `> ${vwap.toFixed(4)}`,  price.toFixed(4),    price > vwap);
-    check("Stoch RSI K < 20 (oversold)",   "< 20",             stochK.toFixed(1),         stochK < 20);
+    check("Stoch RSI K < 40 (not overbought)", "< 40",         stochK.toFixed(1),         stochK < 40);
     check("RSI(14) < 65 (not overbought)", "< 65",             rsi.toFixed(1),            rsi < 65);
-    check("Price above EMA 200",           `> ${ema200.toFixed(4)}`, price.toFixed(4),   price > ema200);
     allPass = conditions.every((c) => c.pass);
   } else if (crossDown) {
     side = "SHORT";
     check("EMA 9 crosses below EMA 21",    "crossunder ↓",     `${ema9Now.toFixed(4)} < ${ema21Now.toFixed(4)}`, true);
     check("Price below VWAP",              `< ${vwap.toFixed(4)}`,  price.toFixed(4),    price < vwap);
-    check("Stoch RSI K > 80 (overbought)", "> 80",             stochK.toFixed(1),         stochK > 80);
+    check("Stoch RSI K > 60 (not oversold)", "> 60",           stochK.toFixed(1),         stochK > 60);
     check("RSI(14) > 40 (not oversold)",   "> 40",             rsi.toFixed(1),            rsi > 40);
-    check("Price below EMA 200",           `< ${ema200.toFixed(4)}`, price.toFixed(4),   price < ema200);
     allPass = conditions.every((c) => c.pass);
   } else {
     check(
