@@ -190,7 +190,7 @@ function inKillzone() {
 }
 
 // ─── Strategy signal ───────────────────────────────────────────────────────────
-async function getSignal() {
+async function getSignal(symbol) {
   const candles = await fetchCandles(symbol, "15m", 300);
   if (candles.length < 220) throw new Error("Not enough candles (<220)");
 
