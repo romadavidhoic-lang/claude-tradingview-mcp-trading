@@ -1,0 +1,62 @@
+{
+  "watchlist": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "SUIUSDT",
+    "PEPEUSDT",
+    "FETUSDT"
+  ],
+  "default_timeframe": "5m",
+
+  "strategy": {
+    "name": "Antigravity — 5M Scalping",
+    "description": "EMA 9/21 crossover confirmed by VWAP session bias + Stoch RSI pullback timing. Designed for 5-minute bars. Fast entries, tight stops, 1:2 R:R.",
+    "timeframe": "5m",
+    "risk_reward": "1:2 (SL 1× ATR, TP 2× ATR)",
+    "sources": ["Rayner Teo", "Adam Khoo", "Trade Pro"]
+  },
+
+  "indicators": {
+    "ema_9":     "Fast EMA — immediate momentum direction. Cross above EMA21 = bullish.",
+    "ema_21":    "Slow EMA — confirmation trend. Cross below EMA9 = bearish.",
+    "ema_200":   "Macro structure. Long only above, short only below.",
+    "vwap":      "Session bias. Above = buyers in control. Below = sellers.",
+    "stoch_rsi": "Entry timing. K < 20 = oversold snap-back. K > 80 = overbought reversal.",
+    "rsi_14":    "Confirmation. Not overbought for long (< 65). Not oversold for short (> 40).",
+    "atr_14":    "Stop and target sizing. SL = 1× ATR, TP = 2× ATR."
+  },
+
+  "entry_rules": {
+    "long": [
+      "EMA 9 crosses above EMA 21 (momentum shift up)",
+      "Price above VWAP (session buyers in control)",
+      "Stoch RSI K < 20 (oversold — snap-back setup)",
+      "RSI(14) < 65 (not chasing overbought)",
+      "Price above EMA 200 (macro bull structure)"
+    ],
+    "short": [
+      "EMA 9 crosses below EMA 21 (momentum shift down)",
+      "Price below VWAP (session sellers in control)",
+      "Stoch RSI K > 80 (overbought — reversal setup)",
+      "RSI(14) > 40 (not chasing oversold)",
+      "Price below EMA 200 (macro bear structure)"
+    ]
+  },
+
+  "exit_rules": [
+    "Stop loss: 1× ATR(14) from entry",
+    "Take profit: 2× ATR(14) from entry (1:2 R:R)",
+    "No maximum hold — exits are purely SL/TP based"
+  ],
+
+  "risk_rules": [
+    "Never risk more than 1% of scalp portfolio per trade",
+    "Maximum trade size capped by SCALP_MAX_TRADE_SIZE_USD in .env",
+    "Maximum trades per day capped by SCALP_MAX_TRADES_PER_DAY in .env",
+    "No trades in the first and last 15 minutes of a session (high spread)",
+    "Skip signal if spread > 0.1% of price",
+    "Paper trade first — 5M scalping requires tight execution"
+  ]
+}

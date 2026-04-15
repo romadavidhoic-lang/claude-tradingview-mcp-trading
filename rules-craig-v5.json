@@ -1,0 +1,43 @@
+{
+  "strategy": {
+    "name": "Antigravity Craig v5 — Supertrend + EMA Trend Filter",
+    "description": "Supertrend(3.5,15) flip bullish while EMA50>EMA200 AND close>EMA200. Long only.",
+    "backtest": {
+      "symbol": "BYBIT:BTCUSDT.P",
+      "timeframe": "15m",
+      "period": "~5 years",
+      "trades": 12,
+      "winRate": "50%",
+      "profitFactor": 4.134,
+      "netPnL": "+2.09%",
+      "maxDD": "0.52%"
+    }
+  },
+  "parameters": {
+    "ST_FACTOR": 3.5,
+    "ST_PERIOD": 15,
+    "SL_MULT": 1.5,
+    "TP_RR": 3.5,
+    "LEVERAGE": 10,
+    "MAX_USD_PER_TRADE": 10,
+    "MAX_TRADES_DAY": 17,
+    "COOLDOWN_MIN": 60
+  },
+  "watchlist": [
+    "BYBIT:BTCUSDT.P",
+    "BYBIT:ETHUSDT.P",
+    "BYBIT:SOLUSDT.P",
+    "BYBIT:XRPUSDT.P",
+    "BYBIT:SUIUSDT.P",
+    "BYBIT:1000PEPEUSDT.P"
+  ],
+  "notes": {
+    "direction": "LONG ONLY — BTC shorts historically net negative",
+    "entry": "Market at Supertrend flip candle close (15m)",
+    "sl": "1.5 × ATR(14) below entry close",
+    "tp": "3.5R (3.5 × SL distance above entry)",
+    "filter": "EMA50 > EMA200 AND close > EMA200 = confirmed uptrend",
+    "optional_htf": "Set V5_HTF_FILTER=true to also require 4h close > 4h EMA200",
+    "optional_kz": "Set V5_KILLZONE=true to restrict to London (07-10 UTC) + NY (13:30-16 UTC)"
+  }
+}

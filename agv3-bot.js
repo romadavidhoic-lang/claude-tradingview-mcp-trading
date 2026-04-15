@@ -15,6 +15,7 @@
 import "dotenv/config";
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from "fs";
 import crypto from "crypto";
+import { tgSignal, tgEntry, tgExit, tgError } from "./telegram.js";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -329,11 +330,8 @@ function runStrategy(candles15m, candles4h, state) {
       action = "EXIT_TP";
       notes  = "TP hit";
     }
-    // Force close at session end
-    else if (!inTrade) {
-      action = "EXIT_SESSION";
-      notes  = "Session end";
-    }
+    // NOTE: No session-based exit — SL/TP manage all exits.
+    // Trade window (08-22 UTC) gates entries only, not exits.
   }
 
   // ── Look for new entry (only if no position) ────────────────────────────
@@ -537,6 +535,8 @@ async function run() {
       });
 
       console.log(`  ✅ Order placed: ${CONFIG.paperTrading ? "PAPER" : order?.orderId}`);
+      await tgSignal({ bot:"AGv3 Sweep", sym:CONFIG.symbol, entry:bar.close, sl, tp, riskPct:(bar.close-sl)/bar.close, atr:atr14, score:`${conf.score}/6`, mode:CONFIG.paperTrading?"PAPER":"LIVE" });
+      await tgEntry({ bot:"AGv3 Sweep", sym:CONFIG.symbol, orderId:newState.position.orderId||"PAPER", entry:bar.close, sl, tp, mode:CONFIG.paperTrading?"PAPER":"LIVE" });
     } catch (err) {
       console.error("  ❌ Order failed:", err.message);
     }
@@ -569,6 +569,9 @@ async function run() {
       exitPrice, pnl, score: pos.score,
       notes: action === "EXIT_SL" ? "SL hit" : action === "EXIT_TP" ? "TP hit" : "Session end",
     });
+
+    const exitReason = action === "EXIT_SL" ? "SL" : action === "EXIT_TP" ? "TP" : "SESSION";
+    await tgExit({ bot:"AGv3 Sweep", sym:CONFIG.symbol, reason:exitReason, entry:pos.entryPrice, exitPrice, pnl, mode:CONFIG.paperTrading?"PAPER":"LIVE" });
 
     newState.position = null;
   }
