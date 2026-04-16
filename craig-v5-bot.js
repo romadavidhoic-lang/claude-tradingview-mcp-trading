@@ -297,10 +297,44 @@ async function placeLong(r) {
   return order.orderId;
 }
 
+// ─── Exit Tracker ──────────────────────────────────────────────────────────────
+async function checkOpenPositions(log) {
+  const open = log.trades.filter(t => t.placed && !t.closed);
+  if (open.length === 0) return;
+
+  console.log(`── Exit check: ${open.length} open position(s) ─────────────────`);
+  for (const t of open) {
+    const name = t.sym.replace(/^[^:]+:/, "").replace(/\.P$/, "");
+    try {
+      const candles = await fetchCandles(t.sym, "15m", 3);
+      const price   = candles[candles.length - 1].close;
+
+      let exitReason = null;
+      let exitPrice  = null;
+      if (price <= t.sl)  { exitReason = "SL"; exitPrice = t.sl; }
+      else if (price >= t.tp) { exitReason = "TP"; exitPrice = t.tp; }
+
+      if (exitReason) {
+        const pnl = (exitPrice - t.entry) / t.entry * CFG.maxTradeSizeUSD * CFG.leverage;
+        t.closed = true; t.exitPrice = exitPrice; t.exitReason = exitReason;
+        t.exitTime = new Date().toISOString(); t.pnl = pnl;
+        console.log(`  ${exitReason === "TP" ? "✅" : "❌"} ${name} → ${exitReason} @ $${exitPrice.toFixed(4)} | PnL: ${pnl >= 0 ? "+" : ""}$${pnl.toFixed(4)}`);
+        await tgExit({ bot:"Craig v5", sym:t.sym, reason:exitReason, entry:t.entry, exitPrice, pnl, mode:t.paper?"PAPER":"LIVE" });
+      } else {
+        const unrealPnl = (price - t.entry) / t.entry * CFG.maxTradeSizeUSD * CFG.leverage;
+        console.log(`  📊 ${name} open | $${price.toFixed(4)} | Unrealized: ${unrealPnl >= 0 ? "+" : ""}$${unrealPnl.toFixed(4)}`);
+      }
+    } catch (err) { console.log(`  ❌ Error checking ${name}: ${err.message}`); }
+  }
+  console.log();
+}
+
 // ─── Main ──────────────────────────────────────────────────────────────────────
 async function run() {
   initCsv();
   const log   = loadLog();
+  await checkOpenPositions(log);
+  saveLog(log);
   let   today = todayCount(log);
 
   console.log("═══════════════════════════════════════════════════════════");
@@ -357,6 +391,7 @@ async function run() {
       ema200:  result.ema200,
       riskPct: result.riskPct,
       placed:  false,
+      closed:  false,
       orderId: null,
       paper:   CFG.paperTrading,
     };

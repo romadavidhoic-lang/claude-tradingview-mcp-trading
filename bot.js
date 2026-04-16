@@ -14,7 +14,7 @@ import "dotenv/config";
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from "fs";
 import crypto from "crypto";
 import { execSync } from "child_process";
-import { tgSignal, tgEntry, tgError } from "./telegram.js";
+import { tgSignal, tgEntry, tgExit, tgError } from "./telegram.js";
 
 // ─── Config ────────────────────────────────────────────────────────────────
 
@@ -478,6 +478,61 @@ function generateTaxSummary() {
   console.log(`  Full record   : ${CSV_FILE}\n`);
 }
 
+// ─── Exit Tracker ────────────────────────────────────────────────────────────
+// Runs at the start of every scan. Checks any open paper/live positions
+// against current price and sends tgExit when SL or TP is hit.
+
+async function checkOpenPositions(log) {
+  const open = log.trades.filter(t => t.orderPlaced && !t.isClosed && t.sl != null && t.tp != null);
+  if (open.length === 0) return;
+
+  console.log(`\n── Exit check: ${open.length} open position(s) ──────────────────`);
+
+  for (const t of open) {
+    const name = t.symbol.replace(/^[^:]+:/, "").replace(/\.P$/, "");
+    try {
+      const candles  = await fetchCandles(t.symbol, "1d", 3);
+      const price    = candles[candles.length - 1].close;
+      const isLong   = t.side === "LONG";
+      const lev      = t.leverage || getSwingLeverage(parseInt(t.ttcScore) || 2);
+
+      let exitReason = null;
+      let exitPrice  = null;
+
+      if (isLong) {
+        if (price <= t.sl)  { exitReason = "SL"; exitPrice = t.sl; }
+        else if (price >= t.tp) { exitReason = "TP"; exitPrice = t.tp; }
+      } else {
+        if (price >= t.sl)  { exitReason = "SL"; exitPrice = t.sl; }
+        else if (price <= t.tp) { exitReason = "TP"; exitPrice = t.tp; }
+      }
+
+      if (exitReason) {
+        const pnl = isLong
+          ? (exitPrice - t.price) / t.price * t.tradeSize * lev
+          : (t.price - exitPrice) / t.price * t.tradeSize * lev;
+
+        t.isClosed   = true;
+        t.exitPrice  = exitPrice;
+        t.exitReason = exitReason;
+        t.exitTime   = new Date().toISOString();
+        t.pnl        = pnl;
+
+        console.log(`  ${exitReason === "TP" ? "✅" : "❌"} ${name} ${t.side} → ${exitReason} @ $${exitPrice.toFixed(4)} | PnL: ${pnl >= 0 ? "+" : ""}$${pnl.toFixed(4)}`);
+        await tgExit({ bot:"Swing MCBv6", sym:t.symbol, reason:exitReason, entry:t.price, exitPrice, pnl, mode:t.paperTrading?"PAPER":"LIVE" });
+      } else {
+        const unrealPnl = isLong
+          ? (price - t.price) / t.price * t.tradeSize * lev
+          : (t.price - price) / t.price * t.tradeSize * lev;
+        console.log(`  📊 ${name} ${t.side} open | $${price.toFixed(4)} | Unrealized: ${unrealPnl >= 0 ? "+" : ""}$${unrealPnl.toFixed(4)}`);
+      }
+    } catch (err) {
+      console.log(`  ❌ Error checking ${name}: ${err.message}`);
+    }
+  }
+  console.log();
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 // Safety net — force exit after 3 minutes so cron never hangs
@@ -493,6 +548,8 @@ async function run() {
   const rules = JSON.parse(readFileSync("rules.json", "utf8"));
   const watchlist = rules.watchlist || ["BYBIT:BTCUSDT.P"];
   const log = loadLog();
+  await checkOpenPositions(log);
+  saveLog(log); // persist any exits detected above
   const todayCount = countTodaysTrades(log);
 
   console.log("═══════════════════════════════════════════════════════════");
@@ -584,6 +641,7 @@ async function run() {
       const ttcScore = r.side === "LONG" ? r.ttcL : r.ttcS;
       const adjustedSize = ttcScore === 2 ? tradeSize * 0.5 : tradeSize; // half size at minimum TTC
 
+      const leverage = getSwingLeverage(ttcScore);
       const logEntry = {
         timestamp: new Date().toISOString(),
         symbol: r.symbol,
@@ -594,9 +652,11 @@ async function run() {
         conditions: r.results,
         allPass: true,
         tradeSize: adjustedSize,
+        leverage,
         ttcScore: `${ttcScore}/7`,
         sl: r.slPrice,
         tp: r.tpPrice,
+        isClosed: false,
         orderPlaced: false,
         orderId: null,
         paperTrading: CONFIG.paperTrading,
