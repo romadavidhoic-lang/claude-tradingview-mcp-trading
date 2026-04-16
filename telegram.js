@@ -28,25 +28,31 @@ export async function tg(text) {
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
-export function tgSignal({ bot, sym, entry, sl, tp, riskPct, atr, score, mode }) {
-  const name = sym.replace(/^[^:]+:/,"").replace(/\.P$/,"");
-  const r = ((tp - entry) / (entry - sl)).toFixed(1);
+export function tgSignal({ bot, sym, entry, sl, tp, riskPct, atr, score, mode, side = "LONG" }) {
+  const name      = sym.replace(/^[^:]+:/,"").replace(/\.P$/,"");
+  const isLong    = side === "LONG";
+  const emoji     = isLong ? "🟢" : "🔴";
+  const dirLabel  = isLong ? "LONG" : "SHORT";
+  const slSign    = isLong ? "−" : "+";
+  // R is always positive: |tp-entry| / |entry-sl|
+  const rr = (Math.abs(tp - entry) / Math.abs(entry - sl)).toFixed(1);
   return tg(
-`🟢 <b>${bot} — SIGNAL</b>
-📌 <b>${name}</b> LONG
+`${emoji} <b>${bot} — SIGNAL</b>
+📌 <b>${name}</b> ${dirLabel}
 💰 Entry:  <b>$${(+entry).toFixed(4)}</b>
-🛑 SL:     $${(+sl).toFixed(4)}  (−${(riskPct*100).toFixed(2)}%)
-🎯 TP:     $${(+tp).toFixed(4)}  (${r}R)
+🛑 SL:     $${(+sl).toFixed(4)}  (${slSign}${(riskPct*100).toFixed(2)}%)
+🎯 TP:     $${(+tp).toFixed(4)}  (${rr}R)
 📊 ATR:    ${(+atr).toFixed(2)}${score ? `\n⭐ Score:  ${score}` : ""}
 🗂 Mode:   ${mode === "PAPER" ? "📋 PAPER" : "🔴 LIVE"}`
   );
 }
 
-export function tgEntry({ bot, sym, orderId, entry, sl, tp, mode }) {
-  const name = sym.replace(/^[^:]+:/,"").replace(/\.P$/,"");
+export function tgEntry({ bot, sym, orderId, entry, sl, tp, mode, side = "LONG" }) {
+  const name     = sym.replace(/^[^:]+:/,"").replace(/\.P$/,"");
+  const dirLabel = side === "LONG" ? "LONG" : "SHORT";
   return tg(
 `✅ <b>${bot} — ORDER PLACED</b>
-📌 <b>${name}</b> LONG @ $${(+entry).toFixed(4)}
+📌 <b>${name}</b> ${dirLabel} @ $${(+entry).toFixed(4)}
 🛑 SL: $${(+sl).toFixed(4)}
 🎯 TP: $${(+tp).toFixed(4)}
 🆔 ${orderId}

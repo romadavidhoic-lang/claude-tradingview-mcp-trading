@@ -608,13 +608,13 @@ async function run() {
       console.log(`   SL:    $${r.slPrice.toFixed(4)} (1.5× ATR)`);
       console.log(`   TP:    $${r.tpPrice.toFixed(4)} (4.5× ATR)`);
 
-      await tgSignal({ bot:"Swing MCBv6", sym:r.symbol, entry:r.price, sl:r.slPrice, tp:r.tpPrice, riskPct:Math.abs(r.price-r.slPrice)/r.price, atr:r.atr, score:`${ttcScore}/7`, mode:CONFIG.paperTrading?"PAPER":"LIVE" });
+      await tgSignal({ bot:"Swing MCBv6", sym:r.symbol, entry:r.price, sl:r.slPrice, tp:r.tpPrice, riskPct:Math.abs(r.price-r.slPrice)/r.price, atr:r.atr, score:`${ttcScore}/7`, mode:CONFIG.paperTrading?"PAPER":"LIVE", side:r.side });
 
       if (CONFIG.paperTrading) {
         console.log(`\n📋 PAPER TRADE — logged. Set PAPER_TRADING=false to go live.`);
         logEntry.orderPlaced = true;
         logEntry.orderId = `PAPER-${Date.now()}`;
-        await tgEntry({ bot:"Swing MCBv6", sym:r.symbol, orderId:logEntry.orderId, entry:r.price, sl:r.slPrice, tp:r.tpPrice, mode:"PAPER" });
+        await tgEntry({ bot:"Swing MCBv6", sym:r.symbol, orderId:logEntry.orderId, entry:r.price, sl:r.slPrice, tp:r.tpPrice, mode:"PAPER", side:r.side });
       } else {
         try {
           const ttcScore = r.side === "LONG" ? r.ttcL : r.ttcS;
@@ -624,7 +624,7 @@ async function run() {
           logEntry.orderPlaced = true;
           logEntry.orderId = order.orderId;
           console.log(`\n✅ LIVE ORDER PLACED — ${order.orderId}`);
-          await tgEntry({ bot:"Swing MCBv6", sym:r.symbol, orderId:order.orderId, entry:r.price, sl:r.slPrice, tp:r.tpPrice, mode:"LIVE" });
+          await tgEntry({ bot:"Swing MCBv6", sym:r.symbol, orderId:order.orderId, entry:r.price, sl:r.slPrice, tp:r.tpPrice, mode:"LIVE", side:r.side });
         } catch (err) {
           console.log(`\n❌ ORDER FAILED — ${err.message}`);
           logEntry.error = err.message;
