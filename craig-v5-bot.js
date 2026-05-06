@@ -376,6 +376,10 @@ async function run() {
       continue;
     }
 
+    if (log.trades.some(t => t.sym === sym && t.placed && !t.closed)) {
+      console.log(`—  already in position`); continue;
+    }
+
     console.log(`✅ SIGNAL`);
     console.log(`   Entry: $${result.entry.toFixed(4)}  SL: $${result.sl.toFixed(4)}  TP: $${result.tp.toFixed(4)}`);
     console.log(`   Risk:  ${(result.riskPct*100).toFixed(3)}%  ATR: ${result.atr.toFixed(2)}  EMA200: ${result.ema200.toFixed(2)}`);

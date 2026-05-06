@@ -486,15 +486,30 @@ async function checkOpenPositions(log) {
   const open = log.trades.filter(t => t.orderPlaced && !t.isClosed && t.sl != null && t.tp != null);
   if (open.length === 0) return;
 
-  console.log(`\n── Exit check: ${open.length} open position(s) ──────────────────`);
-
+  // Deduplicate: group by symbol+side so 1 API call and 1 tgExit per position
+  const groups = {};
   for (const t of open) {
+    const key = `${t.symbol}|${t.side}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  }
+
+  const px = (n) => {
+    if (!n || n === 0) return "0";
+    if (n < 0.001) return n.toPrecision(4);
+    return n.toFixed(n < 1 ? 6 : 4);
+  };
+
+  console.log(`\n── Exit check: ${Object.keys(groups).length} open position(s) ──────────────────`);
+
+  for (const [, trades] of Object.entries(groups)) {
+    const t    = trades[0]; // canonical (oldest) entry
     const name = t.symbol.replace(/^[^:]+:/, "").replace(/\.P$/, "");
     try {
-      const candles  = await fetchCandles(t.symbol, "1d", 3);
-      const price    = candles[candles.length - 1].close;
-      const isLong   = t.side === "LONG";
-      const lev      = t.leverage || getSwingLeverage(parseInt(t.ttcScore) || 2);
+      const candles = await fetchCandles(t.symbol, "1d", 3);
+      const price   = candles[candles.length - 1].close;
+      const isLong  = t.side === "LONG";
+      const lev     = t.leverage || getSwingLeverage(parseInt(t.ttcScore) || 2);
 
       let exitReason = null;
       let exitPrice  = null;
@@ -512,19 +527,19 @@ async function checkOpenPositions(log) {
           ? (exitPrice - t.price) / t.price * t.tradeSize * lev
           : (t.price - exitPrice) / t.price * t.tradeSize * lev;
 
-        t.isClosed   = true;
-        t.exitPrice  = exitPrice;
-        t.exitReason = exitReason;
-        t.exitTime   = new Date().toISOString();
-        t.pnl        = pnl;
-
-        console.log(`  ${exitReason === "TP" ? "✅" : "❌"} ${name} ${t.side} → ${exitReason} @ $${exitPrice.toFixed(4)} | PnL: ${pnl >= 0 ? "+" : ""}$${pnl.toFixed(4)}`);
+        // Mark ALL duplicates as closed with same exit
+        for (const dup of trades) {
+          dup.isClosed = true; dup.exitPrice = exitPrice;
+          dup.exitReason = exitReason; dup.exitTime = new Date().toISOString(); dup.pnl = pnl;
+        }
+        console.log(`  ${exitReason === "TP" ? "✅" : "❌"} ${name} ${t.side} → ${exitReason} @ $${px(exitPrice)} | PnL: ${pnl >= 0 ? "+" : ""}$${pnl.toFixed(4)}`);
         await tgExit({ bot:"Swing MCBv6", sym:t.symbol, reason:exitReason, entry:t.price, exitPrice, pnl, mode:t.paperTrading?"PAPER":"LIVE" });
       } else {
         const unrealPnl = isLong
           ? (price - t.price) / t.price * t.tradeSize * lev
           : (t.price - price) / t.price * t.tradeSize * lev;
-        console.log(`  📊 ${name} ${t.side} open | $${price.toFixed(4)} | Unrealized: ${unrealPnl >= 0 ? "+" : ""}$${unrealPnl.toFixed(4)}`);
+        const dupeNote = trades.length > 1 ? ` (×${trades.length})` : "";
+        console.log(`  📊 ${name} ${t.side}${dupeNote} open | $${px(price)} | Unrealized: ${unrealPnl >= 0 ? "+" : ""}$${unrealPnl.toFixed(4)}`);
       }
     } catch (err) {
       console.log(`  ❌ Error checking ${name}: ${err.message}`);
@@ -640,6 +655,13 @@ async function run() {
       const tradeSize = Math.min(CONFIG.portfolioValue * 0.02, CONFIG.maxTradeSizeUSD);
       const ttcScore = r.side === "LONG" ? r.ttcL : r.ttcS;
       const adjustedSize = ttcScore === 2 ? tradeSize * 0.5 : tradeSize; // half size at minimum TTC
+
+      // Don't enter if we already have an open position for this symbol
+      const alreadyOpen = log.trades.some(t => t.symbol === r.symbol && t.orderPlaced && !t.isClosed);
+      if (alreadyOpen) {
+        console.log(`  ⏭  ${r.symbol.replace(/^[^:]+:/,"").replace(/\.P$/,"")} — already in position, skipping`);
+        continue;
+      }
 
       const leverage = getSwingLeverage(ttcScore);
       const logEntry = {

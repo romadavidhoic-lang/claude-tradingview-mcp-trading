@@ -405,6 +405,9 @@ async function run() {
   for (const r of signals) {
     if (todayCount >= CONFIG.maxTradesPerDay) break;
 
+    const alreadyOpen = log.trades.some(t => t.symbol === r.symbol && t.orderPlaced && !t.isClosed);
+    if (alreadyOpen) { console.log(`  ⏭  ${r.symbol.replace(/^[^:]+:/,"").replace(/\.P$/,"")} already open`); continue; }
+
     const tradeSize = Math.min(CONFIG.portfolioValue * 0.01, CONFIG.maxTradeSizeUSD);
 
     const logEntry = {
